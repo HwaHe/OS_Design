@@ -104,13 +104,13 @@ struct Page {
     unsigned int property;          // the num of free block, used in first fit pm manager  记录某连续内存块的大小（只有在第一页时，才能被赋值）
     list_entry_t page_link;         // free list link  链接其余的空闲内存块的双向链表
     list_entry_t pra_page_link;     // used for pra (page replace algorithm)
-    uintptr_t pra_vaddr;            // used for pra (page replace algorithm)
+    uintptr_t pra_vaddr;            // used for pra (page replace algorithm)  // 页替换算法使用
 };
 
 /* Flags describing the status of a page frame */
 #define PG_reserved                 0       // if this bit=1: the Page is reserved for kernel, cannot be used in alloc/free_pages; otherwise, this bit=0  如果为1，表示保留给内核代码
-// 表示是否被分配的标志，如果为1，则可以被分配；如果为0，则表示已经被分配出去了
 #define PG_property                 1       // if this bit=1: the Page is the head page of a free memory block(contains some continuous_addrress pages), and can be used in alloc_pages; if this bit=0: if the Page is the the head page of a free memory block, then this Page and the memory block is alloced. Or this Page isn't the head page.
+// 表示是否被分配的标志，如果为1，则可以被分配；如果为0，则表示已经被分配出去了
 
 #define SetPageReserved(page)       set_bit(PG_reserved, &((page)->flags))
 #define ClearPageReserved(page)     clear_bit(PG_reserved, &((page)->flags))

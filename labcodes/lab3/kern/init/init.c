@@ -14,7 +14,7 @@
 #include <kmonitor.h>
 
 int kern_init(void) __attribute__((noreturn));
-void grade_backtrace(void);
+
 static void lab1_switch_test(void);
 
 int
@@ -39,14 +39,14 @@ kern_init(void) {
     vmm_init();                 // init virtual memory management
 
     ide_init();                 // init ide devices
-    swap_init();                // init swap
+    swap_init();                // init swap  设置mm和vma区域，页面替换算法，确保后续检查正确进行
 
     clock_init();               // init clock interrupt
     intr_enable();              // enable irq interrupt
 
     //LAB1: CAHLLENGE 1 If you try to do it, uncomment lab1_switch_test()
     // user/kernel mode switch test
-    lab1_switch_test();
+    // lab1_switch_test();
 
     /* do nothing */
     while (1);

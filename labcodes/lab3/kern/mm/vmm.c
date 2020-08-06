@@ -394,6 +394,7 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
             }    
             page_insert(mm->pgdir, page, addr, perm);  // 将页面插入到虚拟地址映射到的物理地址处
             swap_map_swappable(mm, addr, page, 1);  // 插入到mm struct管理的链表中，将此页面设置成可交换的
+	        page->pra_vaddr=addr;  // 将造成缺页异常的虚拟地址赋值给page->pra_vaddr保存
         }
         else {
             cprintf("no swap_init_ok but ptep is %x, failed\n",*ptep);
