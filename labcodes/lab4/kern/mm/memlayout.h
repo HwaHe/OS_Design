@@ -1,3 +1,4 @@
+// 存放关于内存布局，分配所需要的标志，数据结构和宏
 #ifndef __KERN_MM_MEMLAYOUT_H__
 #define __KERN_MM_MEMLAYOUT_H__
 
@@ -98,17 +99,18 @@ struct e820map {
  * that convert Page to other data types, such as phyical address.
  * */
 struct Page {
-    int ref;                        // page frame's reference counter
-    uint32_t flags;                 // array of flags that describe the status of the page frame
-    unsigned int property;          // the num of free block, used in first fit pm manager
-    list_entry_t page_link;         // free list link
+    int ref;                        // page frame's reference counter 引用计数，虚拟页映射到此物理页的数目
+    uint32_t flags;                 // array of flags that describe the status of the page frame  // PG_reserved和PG_property标志的数组
+    unsigned int property;          // the num of free block, used in first fit pm manager  记录某连续内存块的大小（只有在第一页时，才能被赋值）
+    list_entry_t page_link;         // free list link  链接其余的空闲内存块的双向链表
     list_entry_t pra_page_link;     // used for pra (page replace algorithm)
-    uintptr_t pra_vaddr;            // used for pra (page replace algorithm)
+    uintptr_t pra_vaddr;            // used for pra (page replace algorithm)  // 页替换算法使用
 };
 
 /* Flags describing the status of a page frame */
-#define PG_reserved                 0       // if this bit=1: the Page is reserved for kernel, cannot be used in alloc/free_pages; otherwise, this bit=0 
+#define PG_reserved                 0       // if this bit=1: the Page is reserved for kernel, cannot be used in alloc/free_pages; otherwise, this bit=0  如果为1，表示保留给内核代码
 #define PG_property                 1       // if this bit=1: the Page is the head page of a free memory block(contains some continuous_addrress pages), and can be used in alloc_pages; if this bit=0: if the Page is the the head page of a free memory block, then this Page and the memory block is alloced. Or this Page isn't the head page.
+// 表示是否被分配的标志，如果为1，则可以被分配；如果为0，则表示已经被分配出去了
 
 #define SetPageReserved(page)       set_bit(PG_reserved, &((page)->flags))
 #define ClearPageReserved(page)     clear_bit(PG_reserved, &((page)->flags))
@@ -123,8 +125,8 @@ struct Page {
 
 /* free_area_t - maintains a doubly linked list to record free (unused) pages */
 typedef struct {
-    list_entry_t free_list;         // the list header
-    unsigned int nr_free;           // # of free pages in this free list
+    list_entry_t free_list;         // the list header  list entry结构的双向链表指针，表示链表头部
+    unsigned int nr_free;           // # of free pages in this free list  // 记录当前空闲页的数目
 } free_area_t;
 
 

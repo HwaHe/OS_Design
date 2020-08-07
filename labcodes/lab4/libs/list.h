@@ -13,7 +13,7 @@
  * the next/prev entries and we can generate better code by using them
  * directly rather than using the generic single-entry routines.
  * */
-
+// 双向链表数据结构
 struct list_entry {
     struct list_entry *prev, *next;
 };

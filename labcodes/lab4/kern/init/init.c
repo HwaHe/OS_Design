@@ -41,7 +41,7 @@ kern_init(void) {
     proc_init();                // init process table
     
     ide_init();                 // init ide devices
-    swap_init();                // init swap
+    swap_init();                // init swap  设置mm和vma区域，页面替换算法，确保后续检查正确进行
 
     clock_init();               // init clock interrupt
     intr_enable();              // enable irq interrupt
@@ -94,11 +94,24 @@ lab1_print_cur_status(void) {
 static void
 lab1_switch_to_user(void) {
     //LAB1 CHALLENGE 1 : TODO
+	asm volatile (
+	    "sub $0x8, %%esp \n"
+	    "int %0 \n"
+	    "movl %%ebp, %%esp"
+	    : 
+	    : "i"(T_SWITCH_TOU)
+	);
 }
 
 static void
 lab1_switch_to_kernel(void) {
     //LAB1 CHALLENGE 1 :  TODO
+	asm volatile (
+	    "int %0 \n"
+	    "movl %%ebp, %%esp \n"
+	    : 
+	    : "i"(T_SWITCH_TOK)
+	);
 }
 
 static void
