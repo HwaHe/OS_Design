@@ -1,8 +1,8 @@
 .text
 .globl switch_to
-switch_to:                      # switch_to(from, to)
+switch_to:                      # switch_to(from, to)  上下文切换，利用堆栈保存、恢复进程上下文
 
-    # save from's registers
+    # save from's registers 
     movl 4(%esp), %eax          # eax points to from
     popl 0(%eax)                # save eip !popl
     movl %esp, 4(%eax)          # save esp::context of from
@@ -24,7 +24,7 @@ switch_to:                      # switch_to(from, to)
     movl 8(%eax), %ebx          # restore ebx::context of to
     movl 4(%eax), %esp          # restore esp::context of to
 
-    pushl 0(%eax)               # push eip
+    pushl 0(%eax)               # push eip  执行快速初始化
 
     ret
 

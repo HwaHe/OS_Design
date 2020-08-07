@@ -34,14 +34,20 @@ kern_init(void) {
 
     pmm_init();                 // init physical memory management
 
-    pic_init();                 // init interrupt controller
+    pic_init();                 // init interrupt controller 初始化8259A终端控制器（硬件）
     idt_init();                 // init interrupt descriptor table
 
+    // 主要是实验了一个do_pgfault()函数达到页错误异常处理的功能，以及虚拟内存相关的mm，vma数据结构的创建/销毁/查找/插入等函数
     vmm_init();                 // init virtual memory management
+
+    // 启动了创建内核线程的步骤，完成了idle内和线程和init_proc内核线程的创建和复制工作
     proc_init();                // init process table
     
+    // 初始化测试用的swap分区
     ide_init();                 // init ide devices
-    swap_init();                // init swap  设置mm和vma区域，页面替换算法，确保后续检查正确进行
+
+    // 建立完成页面替换过程的主要功能模块，即swap_manager，其中包含了页面置换算法的实现
+    swap_init();                // init swap 
 
     clock_init();               // init clock interrupt
     intr_enable();              // enable irq interrupt

@@ -21,7 +21,7 @@ schedule(void) {
         last = (current == idleproc) ? &proc_list : &(current->list_link);
         le = last;
         do {
-            if ((le = list_next(le)) != &proc_list) {
+            if ((le = list_next(le)) != &proc_list) {  // 先进先出的进程调度
                 next = le2proc(le, list_link);
                 if (next->state == PROC_RUNNABLE) {
                     break;

@@ -306,7 +306,7 @@ boot_alloc_page(void) {
 //pmm_init - setup a pmm to manage physical memory, build PDT&PT to setup paging mechanism 
 //         - check the correctness of pmm & paging mechanism, print PDT&PT
 // 初始化物理内存页管理器框架pmm_manager；
-// 建立空闲的page链表，这样就可以分配以页（4KB）为单位的空闲内存了；
+// 建立空闲的page链表，这样就可以分配以页（4KB）为单位的空闲内存了；主要是初始化了Page数据结构
 // 检查物理内存页分配算法；
 // 为确保切换到分页机制后，代码能够正常执行，先建立一个临时二级页表；
 // 建立一一映射关系的二级页表；
