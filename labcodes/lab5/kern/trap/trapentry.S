@@ -29,7 +29,7 @@ __alltraps:
     # return falls through to trapret...
 .globl __trapret
 __trapret:
-    # restore registers from stack
+    # restore registers from stack  恢复代码数据段寄存器
     popal
 
     # restore %ds, %es, %fs and %gs
@@ -43,7 +43,7 @@ __trapret:
     iret
 
 .globl forkrets
-forkrets:
+forkrets:  # do_fork调用的返回处理
     # set stack to this new process's trapframe
-    movl 4(%esp), %esp
+    movl 4(%esp), %esp # forkrets函数首先把esp指向当前进程的中断帧， esp指向了current->tf.tf_eip，而如果此时执行的是initproc，则current->tf.tf_eip=kernel_thread_entry
     jmp __trapret

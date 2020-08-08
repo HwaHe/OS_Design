@@ -52,7 +52,7 @@ struct proc_struct {
     struct trapframe *tf;                       // Trap frame for current interrupt  中断帧，发生特权级切换的时候保留的一些寄存器信息
     uintptr_t cr3;                              // CR3 register: the base addr of Page Directroy Table(PDT) 页表首地址，因为内核线程共用ucore的页表首地址，所以内核线程的等于boot_cr3
     uint32_t flags;                             // Process flag
-    char name[PROC_NAME_LEN + 1];               // Process name 
+    char name[PROC_NAME_LEN + 1];               // Process name
     list_entry_t list_link;                     // Process link list 
     list_entry_t hash_link;                     // Process hash list
 };

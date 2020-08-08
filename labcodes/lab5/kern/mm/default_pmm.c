@@ -1,3 +1,4 @@
+// 首次适应算法的实现
 #include <pmm.h>
 #include <list.h>
 #include <string.h>
@@ -59,84 +60,173 @@ free_area_t free_area;
 #define free_list (free_area.free_list)
 #define nr_free (free_area.nr_free)
 
+// 初始化空闲块链数据结构
 static void
 default_init(void) {
-    list_init(&free_list);
-    nr_free = 0;
+    list_init(&free_list);  // 设置尾指针指向头指针
+    nr_free = 0;  // 设置空闲块的数目为0
 }
 
+
+/*
+ * (3) default_init_memmap:  CALL GRAPH: kern_init --> pmm_init-->page_init-->init_memmap--> pmm_manager->init_memmap
+ *              This fun is used to init a free block (with parameter: addr_base, page_number).
+ *              First you should init each page (in memlayout.h) in this free block, include:
+ *                  p->flags should be set bit PG_property (means this page is valid. In pmm_init fun (in pmm.c),
+ *                  the bit PG_reserved is setted in p->flags)
+ *                  if this page  is free and is not the first page of free block, p->property should be set to 0.
+ *                  if this page  is free and is the first page of free block, p->property should be set to total num of block.
+ *                  p->ref should be 0, because now p is free and no reference.
+ *                  We can use p->page_link to link this page to free_list, (such as: list_add_before(&free_list, &(p->page_link)); )
+ *              Finally, we should sum the number of free mem block: nr_free+=n
+ * */
+/*
+* 初始化一个空闲内存块链
+*
+* @ base 内存基址
+* @ n 页面数
+*/
 static void
 default_init_memmap(struct Page *base, size_t n) {
     assert(n > 0);
     struct Page *p = base;
     for (; p != base + n; p ++) {
-        assert(PageReserved(p));
-        p->flags = p->property = 0;
+        assert(PageReserved(p));  // 确认本页是否为保留页
+
+        // 设置当前页有效，在pmm_init函数中，被设置成了PG_reserved，代表保留给内核
+        p->flags = 0;     // array of flags that describe the status of the page frame
+        SetPageProperty(p);
+
+        // 记录某连续内存块的大小，只会用在连续内存块的开始地址（第一页)
+        p->property = 0;     // the num of free block, used in first fit pm manager
+
+        // 引用计数设置为0
         set_page_ref(p, 0);
+
+        // 链接到空闲块链
+        list_add_before(&free_list, &(p->page_link));
     }
-    base->property = n;
-    SetPageProperty(base);
-    nr_free += n;
-    list_add(&free_list, &(base->page_link));
+    nr_free += n;  // 说明连续有n个空闲块，属于空闲链表
+    // sum the number of free mem block
+    base -> property=n;  // 连续内存空闲块的大小为n，属于物理页管理链表
 }
 
+/*
+ * (4) default_alloc_pages: search find a first free block (block size >=n) in free list and reszie the free block, return the addr
+ *              of malloced block.
+ *              (4.1) So you should search freelist like this:
+ *                       list_entry_t le = &free_list;
+ *                       while((le=list_next(le)) != &free_list) {
+ *                       ....
+ *                 (4.1.1) In while loop, get the struct page and check the p->property (record the num of free block) >=n?
+ *                       struct Page *p = le2page(le, page_link);
+ *                       if(p->property >= n){ ...
+ *                 (4.1.2) If we find this p, then it' means we find a free block(block size >=n), and the first n pages can be malloced.
+ *                     Some flag bits of this page should be setted: PG_reserved =1, PG_property =0
+ *                     unlink the pages from free_list
+ *                     (4.1.2.1) If (p->property >n), we should re-caluclate number of the the rest of this free block,
+ *                           (such as: le2page(le,page_link))->property = p->property - n;)
+ *                 (4.1.3)  re-caluclate nr_free (number of the the rest of all free block)
+ *                 (4.1.4)  return p
+ *               (4.2) If we can not find a free block (block size >=n), then return NULL
+ * */
 static struct Page *
 default_alloc_pages(size_t n) {
     assert(n > 0);
-    if (n > nr_free) {
+    if (n > nr_free) {  // 所有的空闲块的大小加起来都不够，直接返回null
         return NULL;
     }
-    struct Page *page = NULL;
-    list_entry_t *le = &free_list;
-    while ((le = list_next(le)) != &free_list) {
-        struct Page *p = le2page(le, page_link);
-        if (p->property >= n) {
-            page = p;
-            break;
+
+    list_entry_t *le, *len;
+    le = &free_list;
+
+    while((le=list_next(le)) != &free_list) {  // 遍历，直到回到头指针
+      struct Page *p = le2page(le, page_link);  // 将通用数据结构list_entry转化成页的结构
+      if(p->property >= n){  // 如果空间足够
+        int i;
+        // 设置分配后的空闲块
+        for(i=0;i<n;i++){
+          len = list_next(le);
+          struct Page *pp = le2page(le, page_link);
+          SetPageReserved(pp);  // 将pp->flags设置成PG_reserved，表示pp已经被分配出去了
+          ClearPageProperty(pp);  // 清除之前设置的pp->flags=PG_property
+          list_del(le);  // 从空闲页链表中删除这个双向链表指针
+          le = len;
         }
+
+        // 如果满足，则分配
+        if(p->property>n){
+          (le2page(le,page_link))->property = p->property - n;  // 将分割后的空闲块页面数目设置为property-n
+        }
+        ClearPageProperty(p);
+        SetPageReserved(p);  // p不可再被分配
+        nr_free -= n;  // 空闲页的数目减n
+        return p;
+      }
     }
-    if (page != NULL) {
-        list_del(&(page->page_link));
-        if (page->property > n) {
-            struct Page *p = page + n;
-            p->property = page->property - n;
-            list_add(&free_list, &(p->page_link));
-    }
-        nr_free -= n;
-        ClearPageProperty(page);
-    }
-    return page;
+    return NULL;  // 找不到合适的连续空闲页块，返回null
 }
 
+/*
+*  (5) default_free_pages: relink the pages into  free list, maybe merge small free blocks into big free blocks.
+ *               (5.1) according the base addr of withdrawed blocks, search free list, find the correct position
+ *                     (from low to high addr), and insert the pages. (may use list_next, le2page, list_add_before)
+ *               (5.2) reset the fields of pages, such as p->ref, p->flags (PageProperty)
+ *               (5.3) try to merge low addr or high addr blocks. Notice: should change some pages's p->property correctly.
+ * */
 static void
 default_free_pages(struct Page *base, size_t n) {
     assert(n > 0);
-    struct Page *p = base;
-    for (; p != base + n; p ++) {
-        assert(!PageReserved(p) && !PageProperty(p));
-        p->flags = 0;
-        set_page_ref(p, 0);
+    assert(PageReserved(base));  //  页面已分配出去
+
+    list_entry_t *le = &free_list;
+    struct Page * p;
+    while((le=list_next(le)) != &free_list) {  // 找到需要插入的位置，从低到高
+      p = le2page(le, page_link);
+      if(p>base){
+        break;
+      }
     }
-    base->property = n;
-    SetPageProperty(base);
-    list_entry_t *le = list_next(&free_list);
-    while (le != &free_list) {
-        p = le2page(le, page_link);
-        le = list_next(le);
-        if (base + base->property == p) {
-            base->property += p->property;
-            ClearPageProperty(p);
-            list_del(&(p->page_link));
-        }
-        else if (p + p->property == base) {
-            p->property += base->property;
-            ClearPageProperty(base);
-            base = p;
-            list_del(&(p->page_link));
-        }
+    // 将base分配的内存依次插入到le前面
+    //list_add_before(le, base->page_link);
+    for(p=base;p<base+n;p++){
+      list_add_before(le, &(p->page_link));
     }
+     //  复原page的属性
+    base->flags = 0; 
+    set_page_ref(base, 0);
+    ClearPageProperty(base);  // 清空已分配的标志，可能是n，表示头部，可能是0，表示已分配但不是头部
+    SetPageProperty(base);  // 设置未分配的标志
+    base->property = n;  // 当前可用页面数为n
+    
+
+    // 尝试合并前面的空闲块和后面的空闲块
+    // 如果插入后刚好和后面的空闲块邻接，合并
+    p = le2page(le,page_link) ;
+    if( base+n == p ){
+      base->property += p->property;
+      p->property = 0;
+    }
+
+    // 尝试合并前面的空闲块
+    le = list_prev(&(base->page_link));
+    p = le2page(le, page_link);
+
+    // 依次回溯，直到到达链表头部或者p->property为0，不可合并
+    if(le!=&free_list && p==base-1){
+      while(le!=&free_list){
+        if(p->property){
+          p->property += base->property;
+          base->property = 0;
+          break;
+        }
+        le = list_prev(le);
+        p = le2page(le,page_link);
+      }
+    }
+
     nr_free += n;
-    list_add(&free_list, &(base->page_link));
+    return ;
 }
 
 static size_t
